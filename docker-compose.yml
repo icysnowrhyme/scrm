@@ -1,0 +1,40 @@
+name: scrm
+
+services:
+  mysql:
+    image: mysql:8.0.39
+    container_name: scrm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Copy .env.example to .env and set MYSQL_ROOT_PASSWORD}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --lower_case_table_names=1
+    ports:
+      - "${MYSQL_PORT:-3307}:3306"
+    volumes:
+      - ./volumes/mysql:/var/lib/mysql
+      - ./backend/sql/mysql/youlai_admin.sql:/docker-entrypoint-initdb.d/01-youlai_admin.sql:ro
+      - ./sql/scrm.sql:/docker-entrypoint-initdb.d/02-scrm.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: scrm-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./volumes/redis:/data
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Copy .env.example to .env and set REDIS_PASSWORD}"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
